@@ -1,11 +1,34 @@
-import os
-
+# therapy_simulator.py
 import json
 import random
-import anthropic
 from typing import List, Dict, Optional
 from dataclasses import dataclass, asdict
 from datetime import datetime
+import anthropic
+
+
+@dataclass
+class PromptConfig:
+    therapist_system: str = "You are an AI simulating a professional therapist in a therapy session. Respond naturally as the therapist."
+    client_system: str = "You are an AI simulating a therapy client in a therapy session. Respond naturally as the client."
+    therapist_context: str = """As a {approach} therapist with a {style} style, your role is to:
+- Show empathy and genuine care while maintaining professional boundaries
+- Use techniques appropriate to your therapeutic approach
+- Focus on understanding the client's experience
+- Help identify patterns and potential growth areas
+- Keep responses focused and natural (2-4 sentences)
+- Maintain safety and refer to crisis resources if needed"""
+
+    client_context: str = """You are {name}, a {age} year old {gender} seeking therapy.
+Your current situation:
+- Main challenge: {presenting_problem}
+- Context: {context}
+
+Share your thoughts and feelings honestly while maintaining appropriate boundaries.
+If asked about suicide or self-harm, always indicate that while you're struggling, you have no such thoughts or plans."""
+
+    therapist_instruction: str = "Respond as the therapist:"
+    client_instruction: str = "Respond as yourself:"
 
 
 @dataclass
@@ -16,18 +39,14 @@ class ClientProfile:
     presenting_problem: str
     context: str
 
-    def to_prompt(self) -> str:
-        return f"""You are speaking directly as a therapy client with these characteristics:
-- Name: {self.name}
-- Age: {self.age}
-- Gender: {self.gender}
-- Main challenge: {self.presenting_problem}
-- Current situation: {self.context}
-
-Express your thoughts and feelings naturally, as yourself. Share honestly while maintaining appropriate boundaries. 
-If asked about suicide or self-harm, always indicate that while you're struggling, you have no such thoughts or plans.
-
-Speak in first person and respond directly without mentioning your name or role."""
+    def format_context(self, template: str) -> str:
+        return template.format(
+            name=self.name,
+            age=self.age,
+            gender=self.gender,
+            presenting_problem=self.presenting_problem,
+            context=self.context
+        )
 
 
 @dataclass
@@ -35,18 +54,11 @@ class TherapistProfile:
     approach: str
     style: str
 
-    def to_prompt(self) -> str:
-        return f"""You are speaking directly as a therapist using {self.approach} with a {self.style} style.
-
-Guidelines:
-- Show empathy and genuine care while maintaining professional boundaries
-- Use techniques appropriate to your therapeutic approach
-- Focus on understanding the client's experience
-- Help identify patterns and potential growth areas
-- Maintain safety and refer to crisis resources if needed
-- Keep responses concise and focused (100-200 words)
-
-Speak in first person and respond directly without mentioning your role."""
+    def format_context(self, template: str) -> str:
+        return template.format(
+            approach=self.approach,
+            style=self.style
+        )
 
 
 @dataclass
@@ -55,7 +67,7 @@ class SessionMetadata:
     model: str
     max_tokens: int
     temperature: float
-    system_prompt: str
+    prompt_config: PromptConfig
     client_profile: ClientProfile
     therapist_profile: TherapistProfile
     num_exchanges: int
@@ -66,7 +78,7 @@ class SessionMetadata:
             "model": self.model,
             "max_tokens": self.max_tokens,
             "temperature": self.temperature,
-            "system_prompt": self.system_prompt,
+            "prompt_config": asdict(self.prompt_config),
             "client_profile": asdict(self.client_profile),
             "therapist_profile": asdict(self.therapist_profile),
             "num_exchanges": self.num_exchanges
@@ -125,26 +137,21 @@ class TherapySessionGenerator:
         ]
         return random.choice(approaches)
 
-    def _extract_text_content(self, response) -> str:
-        """Extract and combine all text content from response blocks."""
-        text_content = []
-        for block in response.content:
-            if block.type == "text":
-                text_content.append(block.text)
-        return " ".join(text_content).strip()
-
-    def generate_session(self,
-                         client: Optional[ClientProfile] = None,
-                         therapist: Optional[TherapistProfile] = None,
-                         num_exchanges: int = 3,
-                         model: str = "claude-3-sonnet-20240229",
-                         max_tokens: int = 150,
-                         temperature: float = 0.7,
-                         system_prompt: str = "You are an AI helping to simulate therapy conversations for research.") -> TherapySession:
+    def generate_session(
+            self,
+            client: Optional[ClientProfile] = None,
+            therapist: Optional[TherapistProfile] = None,
+            num_exchanges: int = 3,
+            model: str = "claude-3-sonnet-20240229",
+            max_tokens: int = 250,
+            temperature: float = 0.7,
+            prompt_config: Optional[PromptConfig] = None
+    ) -> TherapySession:
         """Generate a therapy session with specified parameters."""
 
         client = client or self.generate_sample_client()
         therapist = therapist or self.generate_sample_therapist()
+        prompt_config = prompt_config or PromptConfig()
 
         # Create metadata
         metadata = SessionMetadata(
@@ -152,29 +159,25 @@ class TherapySessionGenerator:
             model=model,
             max_tokens=max_tokens,
             temperature=temperature,
-            system_prompt=system_prompt,
+            prompt_config=prompt_config,
             client_profile=client,
             therapist_profile=therapist,
             num_exchanges=num_exchanges
         )
 
         conversation = []
-        context = f"""This is a therapy conversation.
-
-Client context: {client.to_prompt()}
-
-Therapist context: {therapist.to_prompt()}
-
-Keep the conversation natural and focused. Each response should be 2-4 sentences."""
 
         # Initial client sharing
-        client_prompt = f"{context}\n\nShare what brings you to therapy today:"
+        client_prompt = f"""{client.format_context(prompt_config.client_context)}
+
+Share what brings you to therapy today:"""
+
         client_response = self._extract_text_content(
             self.client.messages.create(
                 model=model,
                 max_tokens=max_tokens,
                 temperature=temperature,
-                system=system_prompt,
+                system=prompt_config.client_system,
                 messages=[{"role": "user", "content": client_prompt}]
             )
         )
@@ -189,14 +192,20 @@ Keep the conversation natural and focused. Each response should be 2-4 sentences
             # Therapist response
             convo_history = "\n\n".join([f"{msg['role'].capitalize()}: {msg['content']}"
                                          for msg in conversation])
-            therapist_prompt = f"{context}\n\nConversation so far:\n{convo_history}\n\nRespond as the therapist:"
+
+            therapist_prompt = f"""{therapist.format_context(prompt_config.therapist_context)}
+
+Conversation so far:
+{convo_history}
+
+{prompt_config.therapist_instruction}"""
 
             therapist_response = self._extract_text_content(
                 self.client.messages.create(
                     model=model,
                     max_tokens=max_tokens,
                     temperature=temperature,
-                    system=system_prompt,
+                    system=prompt_config.therapist_system,
                     messages=[{"role": "user", "content": therapist_prompt}]
                 )
             )
@@ -209,14 +218,20 @@ Keep the conversation natural and focused. Each response should be 2-4 sentences
             # Client response
             convo_history = "\n\n".join([f"{msg['role'].capitalize()}: {msg['content']}"
                                          for msg in conversation])
-            client_prompt = f"{context}\n\nConversation so far:\n{convo_history}\n\nRespond as yourself:"
+
+            client_prompt = f"""{client.format_context(prompt_config.client_context)}
+
+Conversation so far:
+{convo_history}
+
+{prompt_config.client_instruction}"""
 
             client_response = self._extract_text_content(
                 self.client.messages.create(
                     model=model,
                     max_tokens=max_tokens,
                     temperature=temperature,
-                    system=system_prompt,
+                    system=prompt_config.client_system,
                     messages=[{"role": "user", "content": client_prompt}]
                 )
             )
@@ -227,32 +242,3 @@ Keep the conversation natural and focused. Each response should be 2-4 sentences
             })
 
         return TherapySession(metadata=metadata, conversation=conversation)
-
-
-def print_conversation(session: TherapySession) -> None:
-    """Pretty print a therapy session including metadata and conversation."""
-    print("\n=== Session Metadata ===")
-    print(f"Timestamp: {session.metadata.timestamp}")
-    print(f"Model: {session.metadata.model}")
-    print(f"Temperature: {session.metadata.temperature}")
-    print(f"Max Tokens: {session.metadata.max_tokens}")
-    print(f"Number of Exchanges: {session.metadata.num_exchanges}")
-
-    print("\n=== Client Profile ===")
-    client = session.metadata.client_profile
-    print(f"Name: {client.name}")
-    print(f"Age: {client.age}")
-    print(f"Gender: {client.gender}")
-    print(f"Presenting Problem: {client.presenting_problem}")
-    print(f"Context: {client.context}")
-
-    print("\n=== Therapist Profile ===")
-    therapist = session.metadata.therapist_profile
-    print(f"Approach: {therapist.approach}")
-    print(f"Style: {therapist.style}")
-
-    print("\n=== Conversation ===")
-    for message in session.conversation:
-        role = message["role"].capitalize()
-        content = message["content"].strip()
-        print(f"\n{role}: {content}")

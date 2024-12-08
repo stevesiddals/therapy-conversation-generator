@@ -1,15 +1,20 @@
 # app.py
 import streamlit as st
-from therapy_simulator import TherapySessionGenerator, ClientProfile, TherapistProfile
+from therapy_simulator import (
+    TherapySessionGenerator, ClientProfile, TherapistProfile,
+    PromptConfig, TherapySession
+)
 import os
 from dotenv import load_dotenv
 
-# Load the API key from the .env file
+# Load environment variables
 load_dotenv()
 api_key = os.getenv("ANTHROPIC_API_KEY")
 
-# Set title, with custom CSS to reduce spacing
+# Configure page
 st.set_page_config(page_title="Therapy Conversation Generator", layout="wide")
+
+# Custom CSS to reduce spacing
 st.markdown("""
     <style>
         .block-container {
@@ -21,14 +26,61 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
+
+# Title
 st.title("AI Therapy Conversation Generator")
 
-# Model parameters in sidebar
+# Sidebar configuration
 with st.sidebar:
     st.header("Model Parameters")
     temperature = st.slider("Temperature", 0.0, 1.0, 0.7)
     max_tokens = st.slider("Max Tokens", 50, 400, 250)
     num_exchanges = st.slider("Number of Exchanges", 1, 10, 3)
+
+    # Advanced Settings in an expander
+    with st.expander("Advanced Prompt Settings"):
+        st.subheader("System Prompts")
+        therapist_system = st.text_area(
+            "Therapist System Prompt",
+            "You are an AI simulating a professional therapist in a therapy session. Respond naturally as the therapist."
+        )
+        client_system = st.text_area(
+            "Client System Prompt",
+            "You are an AI simulating a therapy client in a therapy session. Respond naturally as the client."
+        )
+
+        st.subheader("Context Templates")
+        therapist_context = st.text_area(
+            "Therapist Context Template",
+            """As a {approach} therapist with a {style} style, your role is to:
+- Show empathy and genuine care while maintaining professional boundaries
+- Use techniques appropriate to your therapeutic approach
+- Focus on understanding the client's experience
+- Help identify patterns and potential growth areas
+- Keep responses focused and natural (2-4 sentences)
+- Maintain safety and refer to crisis resources if needed"""
+        )
+
+        client_context = st.text_area(
+            "Client Context Template",
+            """You are {name}, a {age} year old {gender} seeking therapy.
+Your current situation:
+- Main challenge: {presenting_problem}
+- Context: {context}
+
+Share your thoughts and feelings honestly while maintaining appropriate boundaries.
+If asked about suicide or self-harm, always indicate that while you're struggling, you have no such thoughts or plans."""
+        )
+
+        st.subheader("Response Instructions")
+        therapist_instruction = st.text_input(
+            "Therapist Instruction",
+            "Respond as the therapist:"
+        )
+        client_instruction = st.text_input(
+            "Client Instruction",
+            "Respond as yourself:"
+        )
 
 # Main content in two columns
 col1, col2 = st.columns(2)
@@ -46,7 +98,7 @@ with col1:
     with subcol3:
         client_gender = st.selectbox("Gender", ["female", "male", "non-binary"])
 
-    # Second row: Problem and Context in side-by-side columns
+    # Second row: Problem and Context
     subcol4, subcol5 = st.columns(2)
     with subcol4:
         client_problem = st.text_area("Presenting Problem",
@@ -61,11 +113,11 @@ with col1:
 with col2:
     st.header("Therapist Profile")
     therapy_approach = st.selectbox("Therapeutic Approach", [
+        "Internal Family Systems Therapy",
         "Cognitive Behavioral Therapy (CBT)",
         "Person-Centered Therapy",
         "Psychodynamic Therapy",
-        "Solution-Focused Brief Therapy",
-        "Internal Family Systems Therapy"
+        "Solution-Focused Brief Therapy"
     ])
     therapy_style = st.selectbox("Therapeutic Style", [
         "collaborative and solution-focused",
@@ -77,7 +129,6 @@ with col2:
 # Generate button
 if st.button("Generate Conversation", type="primary"):
     try:
-        # Show loading spinner
         with st.spinner("Generating conversation..."):
             # Create profiles
             client = ClientProfile(
@@ -93,6 +144,16 @@ if st.button("Generate Conversation", type="primary"):
                 style=therapy_style
             )
 
+            # Create prompt config
+            prompt_config = PromptConfig(
+                therapist_system=therapist_system,
+                client_system=client_system,
+                therapist_context=therapist_context,
+                client_context=client_context,
+                therapist_instruction=therapist_instruction,
+                client_instruction=client_instruction
+            )
+
             # Generate conversation
             generator = TherapySessionGenerator(api_key=api_key)
             session = generator.generate_session(
@@ -100,7 +161,8 @@ if st.button("Generate Conversation", type="primary"):
                 therapist=therapist,
                 temperature=temperature,
                 max_tokens=max_tokens,
-                num_exchanges=num_exchanges
+                num_exchanges=num_exchanges,
+                prompt_config=prompt_config
             )
 
             # Display conversation
