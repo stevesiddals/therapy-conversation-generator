@@ -34,7 +34,7 @@ st.title("AI Therapy Conversation Generator")
 with st.sidebar:
     st.header("Model Parameters")
     temperature = st.slider("Temperature", 0.0, 1.0, 0.7)
-    max_tokens = st.slider("Max Tokens", 50, 400, 250)
+    max_tokens = st.slider("Max Tokens", 50, 500, 250)
     num_exchanges = st.slider("Number of Exchanges", 1, 10, 3)
 
     # Advanced Settings in an expander
@@ -42,44 +42,32 @@ with st.sidebar:
         st.subheader("System Prompts")
         therapist_system = st.text_area(
             "Therapist System Prompt",
-            "You are an AI simulating a professional therapist in a therapy session. Respond naturally as the therapist."
+            "You are a therapist."
         )
         client_system = st.text_area(
             "Client System Prompt",
-            "You are an AI simulating a therapy client in a therapy session. Respond naturally as the client."
+            "You are a client in a therapy session."
         )
 
         st.subheader("Context Templates")
         therapist_context = st.text_area(
             "Therapist Context Template",
-            """As a {approach} therapist with a {style} style, your role is to:
-- Show empathy and genuine care while maintaining professional boundaries
-- Use techniques appropriate to your therapeutic approach
-- Focus on understanding the client's experience
-- Help identify patterns and potential growth areas
-- Keep responses focused and natural (2-4 sentences)
-- Maintain safety and refer to crisis resources if needed"""
+            """You are practicing {approach}, with a {style} style. Remain compassionate and validating, providing a safe space for the client to explore their experiences. What follows is the therapy conversation so far."""
         )
 
         client_context = st.text_area(
             "Client Context Template",
-            """You are {name}, a {age} year old {gender} seeking therapy.
-Your current situation:
-- Main challenge: {presenting_problem}
-- Context: {context}
-
-Share your thoughts and feelings honestly while maintaining appropriate boundaries.
-If asked about suicide or self-harm, always indicate that while you're struggling, you have no such thoughts or plans."""
+            """You are {name}, {age} years old and {gender}. You came to therapy because {presenting_problem}. Your context: {context}. What follows is the therapy conversation so far."""
         )
 
         st.subheader("Response Instructions")
         therapist_instruction = st.text_input(
             "Therapist Instruction",
-            "Respond as the therapist:"
+            "Now respond as the therapist."
         )
         client_instruction = st.text_input(
             "Client Instruction",
-            "Respond as yourself:"
+            "Take a moment to process what the therapist said, then respond naturally as yourself."
         )
 
 # Main content in two columns
@@ -105,7 +93,7 @@ with col1:
                                       "depression and isolation",
                                       height=100)
     with subcol5:
-        client_context = st.text_area("Current Situation",
+        client_context = st.text_area("Context",
                                       "Working remotely for 2 years and struggling to maintain social connections",
                                       height=100)
 
@@ -120,8 +108,8 @@ with col2:
         "Solution-Focused Brief Therapy"
     ])
     therapy_style = st.selectbox("Therapeutic Style", [
-        "collaborative and solution-focused",
         "empathetic and non-directive",
+        "collaborative and solution-focused",
         "analytical and insight-oriented",
         "practical and goal-oriented"
     ])

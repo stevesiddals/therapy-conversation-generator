@@ -9,26 +9,19 @@ import anthropic
 
 @dataclass
 class PromptConfig:
-    therapist_system: str = "You are an AI simulating a professional therapist in a therapy session. Respond naturally as the therapist."
-    client_system: str = "You are an AI simulating a therapy client in a therapy session. Respond naturally as the client."
-    therapist_context: str = """As a {approach} therapist with a {style} style, your role is to:
-- Show empathy and genuine care while maintaining professional boundaries
-- Use techniques appropriate to your therapeutic approach
-- Focus on understanding the client's experience
-- Help identify patterns and potential growth areas
-- Keep responses focused and natural (2-4 sentences)
-- Maintain safety and refer to crisis resources if needed"""
+    therapist_system: str = "You are a therapist."
+    client_system: str = "You are a client in a therapy session."
 
-    client_context: str = """You are {name}, a {age} year old {gender} seeking therapy.
-Your current situation:
-- Main challenge: {presenting_problem}
-- Context: {context}
+    therapist_context: str = """You are practicing {approach}, with a {style} style. 
+Remain compassionate and validating, providing a safe space for the client to explore their experiences. 
+What follows is the therapy conversation so far."""
 
-Share your thoughts and feelings honestly while maintaining appropriate boundaries.
-If asked about suicide or self-harm, always indicate that while you're struggling, you have no such thoughts or plans."""
+    client_context: str = """You are {name}, {age} years old and {gender}. 
+You came to therapy because {presenting_problem}. 
+Your context: {context}. What follows is the therapy conversation so far."""
 
-    therapist_instruction: str = "Respond as the therapist:"
-    client_instruction: str = "Respond as yourself:"
+    therapist_instruction: str = "Now respond as the therapist."
+    client_instruction: str = "Take a moment to process what the therapist said, then respond naturally as yourself."
 
 
 @dataclass
