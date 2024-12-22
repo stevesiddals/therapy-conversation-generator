@@ -13,6 +13,10 @@ from datetime import datetime
 load_dotenv()
 api_key = os.getenv("ANTHROPIC_API_KEY")
 mongodb_uri = os.getenv("MONGODB_URI")
+def update_researcher_name(conv_id):
+    storage = get_storage()
+    new_name = st.session_state[f"researcher_{conv_id}"]
+    storage.update_researcher(conv_id, new_name)
 
 # Initialize MongoDB storage lazily
 @st.cache_resource
@@ -257,17 +261,13 @@ with tab2:
     # Display conversations as single-line rows
     for conv in conversations:
         cols = st.columns([1.5, 1.5, 0.7, 0.7, 1.5, 1.5, 2.5, 1, 0.5])
-
-        # Display row data in one line
         researcher_name = cols[0].text_input(
-            "Researcher",  # We still need a label for accessibility but won't show it
+            "Researcher",
             value=conv.get('researcher', 'Not specified'),
             key=f"researcher_{conv['id']}",
-            label_visibility="collapsed",  # This hides the label
-            on_change=lambda: storage.update_researcher(
-                conv['id'],
-                st.session_state[f"researcher_{conv['id']}"]
-            )
+            label_visibility="collapsed",
+            on_change=update_researcher_name,
+            args=(conv['id'],)  # Only pass the conv_id
         )
         cols[1].write(conv['client_name'])
         cols[2].write(str(conv['age']))
@@ -279,16 +279,51 @@ with tab2:
             conv.get('context', '')) > 30 else conv.get('context', ''))
 
         # View button
+
         if cols[7].button("👁️", key=f"view_{conv['id']}", help="View conversation"):
             session = storage.get_therapy_session(conv['id'])
             if session:
                 with st.expander("Conversation Details", expanded=True):
+                    # Show timestamp at the top
                     st.markdown(
                         f"**Session Details** - {datetime.fromisoformat(conv['timestamp']).strftime('%Y-%m-%d %H:%M')}")
+
+                    # Create two columns for client and therapist profiles
+                    profile_col1, profile_col2 = st.columns(2)
+
+                    # Client Profile
+                    with profile_col1:
+                        st.header("Client Profile")
+
+                        # First row: Name, Age, Gender
+                        subcol1, subcol2, subcol3 = st.columns(3)
+                        with subcol1:
+                            st.markdown(f"**Name:** {session.metadata.client_profile.name}")
+                        with subcol2:
+                            st.markdown(f"**Age:** {session.metadata.client_profile.age}")
+                        with subcol3:
+                            st.markdown(f"**Gender:** {session.metadata.client_profile.gender}")
+
+                        # Second row: Problem and Context
+                        st.markdown("**Presenting Problem:**")
+                        st.write(session.metadata.client_profile.presenting_problem)
+                        st.markdown("**Context:**")
+                        st.write(session.metadata.client_profile.context)
+
+                    # Therapist Profile
+                    with profile_col2:
+                        st.header("Therapist Profile")
+                        st.markdown(f"**Approach:** {session.metadata.therapist_profile.approach}")
+                        st.markdown(f"**Style:** {session.metadata.therapist_profile.style}")
+
+                    # Add a separator
+                    st.markdown("---")
+
+                    # Show conversation
+                    st.header("Conversation")
                     for msg in session.conversation:
                         with st.chat_message(msg["role"]):
                             st.write(msg["content"])
-
         # Delete button
         if cols[8].button("🗑️", key=f"delete_{conv['id']}", help="Delete conversation"):
             if storage.delete_conversation(conv['id']):
