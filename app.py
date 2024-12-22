@@ -125,6 +125,7 @@ with tab1:
             st.header("Therapist Profile")
             therapy_approach = st.selectbox("Therapeutic Approach", [
                 "Internal Family Systems Therapy",
+                "Unified Protocol for Emotional Disorders (UP)",
                 "Cognitive Behavioral Therapy (CBT)",
                 "Person-Centered Therapy",
                 "Psychodynamic Therapy",
@@ -143,6 +144,12 @@ with tab1:
     # Generate conversation if form is submitted
     if generate_pressed:
         try:
+            st.subheader("Conversation")
+
+            # Create a temporary status container
+            status_container = st.empty()
+            status_container.info("Connecting to API...")
+
             # Create profiles first (fast operation)
             client = ClientProfile(
                 name=client_name,
@@ -166,27 +173,36 @@ with tab1:
                 client_instruction=client_instruction
             )
 
+            # Initialize generator
+            generator = TherapySessionGenerator(api_key=api_key)
+
+            # Create placeholder for conversation
+            messages = []
+            session = None
+
+            # Generate and display messages as they come
             with st.spinner("Generating conversation..."):
-                # Generate conversation
-                generator = TherapySessionGenerator(api_key=api_key)
-                session = generator.generate_session(
-                    client=client,
-                    therapist=therapist,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    num_exchanges=num_exchanges,
-                    prompt_config=prompt_config
-                )
 
-            # Display conversation immediately after generation
-            st.subheader("Conversation")
-            for msg in session.conversation:
-                with st.chat_message(msg["role"]):
-                    st.write(msg["content"])
+                # Clear the status once we start getting responses
+                status_container.empty()
 
-            # Save to database after displaying (won't block UI)
-            if save_conversation:
-                storage = get_storage()  # Get storage only when needed
+                for message, current_session in generator.generate_session(
+                        client=client,
+                        therapist=therapist,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        num_exchanges=num_exchanges,
+                        prompt_config=prompt_config
+                ):
+                    messages.append(message)
+                    session = current_session
+
+                    with st.chat_message(message["role"]):
+                        st.write(message["content"])
+
+            # Save conversation after generation complete
+            if save_conversation and session:
+                storage = get_storage()
                 storage.save_therapy_session(session, researcher)
                 st.success("Conversation saved")
 
@@ -206,6 +222,7 @@ with tab2:
             "Filter by approach",
             ["All"] + [
                 "Internal Family Systems Therapy",
+                "Unified Protocol for emotional disorders (UP)",
                 "Cognitive Behavioral Therapy (CBT)",
                 "Person-Centered Therapy",
                 "Psychodynamic Therapy",
@@ -242,7 +259,16 @@ with tab2:
         cols = st.columns([1.5, 1.5, 0.7, 0.7, 1.5, 1.5, 2.5, 1, 0.5])
 
         # Display row data in one line
-        cols[0].write(conv.get('researcher', 'Not specified'))
+        researcher_name = cols[0].text_input(
+            "Researcher",  # We still need a label for accessibility but won't show it
+            value=conv.get('researcher', 'Not specified'),
+            key=f"researcher_{conv['id']}",
+            label_visibility="collapsed",  # This hides the label
+            on_change=lambda: storage.update_researcher(
+                conv['id'],
+                st.session_state[f"researcher_{conv['id']}"]
+            )
+        )
         cols[1].write(conv['client_name'])
         cols[2].write(str(conv['age']))
         cols[3].write(conv['gender'])

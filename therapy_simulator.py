@@ -5,7 +5,7 @@ from typing import List, Dict, Optional
 from dataclasses import dataclass, asdict
 from datetime import datetime
 import anthropic
-
+import streamlit as st
 
 @dataclass
 class PromptConfig:
@@ -157,7 +157,6 @@ class TherapySessionGenerator:
             therapist_profile=therapist,
             num_exchanges=num_exchanges
         )
-
         conversation = []
 
         # Initial client sharing
@@ -175,10 +174,10 @@ Share what brings you to therapy today:"""
             )
         )
 
-        conversation.append({
-            "role": "client",
-            "content": client_response
-        })
+        message = {"role": "client", "content": client_response}
+        conversation.append(message)
+        yield message, TherapySession(metadata=metadata,
+                                      conversation=conversation)  # Yield both message and current session
 
         # Generate conversation exchanges
         for _ in range(num_exchanges):
@@ -203,10 +202,9 @@ Conversation so far:
                 )
             )
 
-            conversation.append({
-                "role": "therapist",
-                "content": therapist_response
-            })
+            message = {"role": "therapist", "content": therapist_response}
+            conversation.append(message)
+            yield message, TherapySession(metadata=metadata, conversation=conversation)
 
             # Client response
             convo_history = "\n\n".join([f"{msg['role'].capitalize()}: {msg['content']}"
@@ -229,9 +227,6 @@ Conversation so far:
                 )
             )
 
-            conversation.append({
-                "role": "client",
-                "content": client_response
-            })
-
-        return TherapySession(metadata=metadata, conversation=conversation)
+            message = {"role": "client", "content": client_response}
+            conversation.append(message)
+            yield message, TherapySession(metadata=metadata, conversation=conversation)

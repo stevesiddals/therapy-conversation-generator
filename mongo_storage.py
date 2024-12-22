@@ -161,3 +161,12 @@ class MongoStorage:
                 }}
             ]).next()["avg_exchanges"]
         }
+
+    def update_researcher(self, conversation_id: str, new_researcher: str) -> bool:
+        """Update the researcher name for a conversation."""
+        from bson.objectid import ObjectId
+        result = self.conversations.update_one(
+            {"_id": ObjectId(conversation_id)},
+            {"$set": {"researcher": new_researcher}}
+        )
+        return result.modified_count > 0
