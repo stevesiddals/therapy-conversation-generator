@@ -75,7 +75,7 @@ with tab1:
                 st.subheader("Context Templates")
                 therapist_context = st.text_area(
                     "Therapist Context Template",
-                    """You are practicing {approach}, with a {style} style. Remain compassionate and validating, providing a safe space for the client to explore their experiences. What follows is the therapy conversation so far."""
+                    """{approach} {style} What follows is the therapy conversation so far."""
                 )
 
                 client_context = st.text_area(
@@ -127,20 +127,26 @@ with tab1:
         # Therapist Profile Configuration
         with col2:
             st.header("Therapist Profile")
-            therapy_approach = st.selectbox("Therapeutic Approach", [
-                "Internal Family Systems Therapy",
-                "Unified Protocol for Emotional Disorders (UP)",
-                "Cognitive Behavioral Therapy (CBT)",
-                "Person-Centered Therapy",
-                "Psychodynamic Therapy",
-                "Solution-Focused Brief Therapy"
-            ])
-            therapy_style = st.selectbox("Therapeutic Style", [
-                "empathetic and non-directive",
-                "collaborative and solution-focused",
-                "analytical and insight-oriented",
-                "practical and goal-oriented"
-            ])
+
+            therapy_approach = st.selectbox(
+                "You are practicing",
+                [
+                    "Internal Family Systems Therapy",
+                    "Unified Protocol for Emotional Disorders (UP)",
+                    "Cognitive Behavioral Therapy (CBT)",
+                    "Person-Centered Therapy",
+                    "Psychodynamic Therapy",
+                    "Solution-Focused Brief Therapy",
+                    "Other (blank, please specify in therapeutic style)"
+                ]
+            )
+
+            default_style = "Your aim is to provide a warm, safe and compassionate space for emotional exploration and healing."
+            therapy_style = st.text_area(
+                "Therapeutic Style or Additional Context",
+                value=default_style,
+                help="Use this field to add details about your therapeutic style, or to specify your approach if you selected 'Other' above"
+            )
 
         # Submit button at the bottom
         generate_pressed = st.form_submit_button("Generate Conversation", type="primary")
@@ -163,8 +169,13 @@ with tab1:
                 context=client_context
             )
 
+            approach_text = (
+                f"You are practicing {therapy_approach}" if therapy_approach != "Other (blank, please specify in therapeutic style)" else ""
+            )
+
+            # Create therapist profile with appropriate fields for template
             therapist = TherapistProfile(
-                approach=therapy_approach,
+                approach=approach_text,
                 style=therapy_style
             )
 
@@ -274,7 +285,8 @@ with tab2:
         cols[3].write(conv['gender'])
         cols[4].write(conv['presenting_problem'][:20] + '...' if len(conv['presenting_problem']) > 20 else conv[
             'presenting_problem'])
-        cols[5].write(conv['approach'].replace('Therapy', '').strip()[:20])
+        approach_display = conv['approach'].replace('You are practicing ', '').replace('Therapy', '').strip()
+        cols[5].write(approach_display[:20])
         cols[6].write(conv.get('context', '')[:30] + '...' if conv.get('context', '') and len(
             conv.get('context', '')) > 30 else conv.get('context', ''))
 
@@ -305,10 +317,8 @@ with tab2:
                             st.markdown(f"**Gender:** {session.metadata.client_profile.gender}")
 
                         # Second row: Problem and Context
-                        st.markdown("**Presenting Problem:**")
-                        st.write(session.metadata.client_profile.presenting_problem)
-                        st.markdown("**Context:**")
-                        st.write(session.metadata.client_profile.context)
+                        st.markdown(f"**Presenting Problem:** {session.metadata.client_profile.presenting_problem}")
+                        st.markdown(f"**Context:** {session.metadata.client_profile.context}")
 
                     # Therapist Profile
                     with profile_col2:
