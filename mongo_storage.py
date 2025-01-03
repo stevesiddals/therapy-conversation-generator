@@ -70,77 +70,105 @@ class MongoStorage:
             conversation=conversation_data["conversation"]
         )
 
+    def get_average_rating(self, conversation_id: str) -> Optional[float]:
+        """Calculate the average rating for a conversation.
+
+        Returns:
+            Optional[float]: Average rating on a 1-5 scale, or None if no ratings
+        """
+        feedback_list = self.get_feedback(conversation_id)
+        ratings = []
+
+        rating_values = {
+            'very_negative': 1,
+            'negative': 2,
+            'neutral': 3,
+            'positive': 4,
+            'very_positive': 5
+        }
+
+        for feedback in feedback_list:
+            if 'rating' in feedback and feedback['rating'] in rating_values:
+                ratings.append(rating_values[feedback['rating']])
+
+        return sum(ratings) / len(ratings) if ratings else None
+
     def list_conversations(self, limit: int = 100, skip: int = 0) -> List[Dict]:
         """List conversations with complete metadata."""
         cursor = self.conversations.find(
             {},
             {
-                # Metadata fields
+                # Keep the same projection as before
                 "metadata.timestamp": 1,
                 "metadata.model": 1,
                 "metadata.max_tokens": 1,
                 "metadata.temperature": 1,
                 "metadata.num_exchanges": 1,
-
-                # Client profile
                 "metadata.client_profile.name": 1,
                 "metadata.client_profile.age": 1,
                 "metadata.client_profile.gender": 1,
                 "metadata.client_profile.presenting_problem": 1,
                 "metadata.client_profile.context": 1,
-
-                # Therapist profile
                 "metadata.therapist_profile.approach": 1,
                 "metadata.therapist_profile.style": 1,
-
-                # Prompt config
                 "metadata.prompt_config.therapist_system": 1,
                 "metadata.prompt_config.client_system": 1,
                 "metadata.prompt_config.therapist_context": 1,
                 "metadata.prompt_config.client_context": 1,
                 "metadata.prompt_config.therapist_instruction": 1,
                 "metadata.prompt_config.client_instruction": 1,
-
-                # Other fields
                 "researcher": 1,
-                "created_at": 1
+                "created_at": 1,
+                "feedback": 1
             }
         ).sort("created_at", -1).skip(skip).limit(limit)
 
-        return [{
-            # Basic identifiers
-            "id": str(doc["_id"]),
-            "timestamp": doc["metadata"]["timestamp"],
-            "researcher": doc.get("researcher"),
-            "created_at": doc.get("created_at"),
+        conversations = []
+        for doc in cursor:
+            conv_dict = {
+                # Basic identifiers
+                "id": str(doc["_id"]),
+                "timestamp": doc["metadata"]["timestamp"],
+                "researcher": doc.get("researcher"),
+                "created_at": doc.get("created_at"),
 
-            # Client info
-            "client_name": doc["metadata"]["client_profile"]["name"],
-            "age": doc["metadata"]["client_profile"]["age"],
-            "gender": doc["metadata"]["client_profile"]["gender"],
-            "presenting_problem": doc["metadata"]["client_profile"]["presenting_problem"],
-            "context": doc["metadata"]["client_profile"]["context"],
+                # Client info
+                "client_name": doc["metadata"]["client_profile"]["name"],
+                "age": doc["metadata"]["client_profile"]["age"],
+                "gender": doc["metadata"]["client_profile"]["gender"],
+                "presenting_problem": doc["metadata"]["client_profile"]["presenting_problem"],
+                "context": doc["metadata"]["client_profile"]["context"],
 
-            # Therapist info
-            "approach": doc["metadata"]["therapist_profile"]["approach"],
-            "style": doc["metadata"]["therapist_profile"]["style"],
+                # Therapist info
+                "approach": doc["metadata"]["therapist_profile"]["approach"],
+                "style": doc["metadata"]["therapist_profile"]["style"],
 
-            # Model parameters
-            "model": doc["metadata"]["model"],
-            "max_tokens": doc["metadata"]["max_tokens"],
-            "temperature": doc["metadata"]["temperature"],
-            "num_exchanges": doc["metadata"]["num_exchanges"],
+                # Group model parameters under metadata
+                "metadata": {
+                    "model": doc["metadata"]["model"],
+                    "max_tokens": doc["metadata"]["max_tokens"],
+                    "temperature": doc["metadata"]["temperature"],
+                    "num_exchanges": doc["metadata"]["num_exchanges"]
+                },
 
-            # Prompt configuration
-            "prompt_config": {
-                "therapist_system": doc["metadata"]["prompt_config"]["therapist_system"],
-                "client_system": doc["metadata"]["prompt_config"]["client_system"],
-                "therapist_context": doc["metadata"]["prompt_config"]["therapist_context"],
-                "client_context": doc["metadata"]["prompt_config"]["client_context"],
-                "therapist_instruction": doc["metadata"]["prompt_config"]["therapist_instruction"],
-                "client_instruction": doc["metadata"]["prompt_config"]["client_instruction"]
+                # Prompt configuration
+                "prompt_config": {
+                    "therapist_system": doc["metadata"]["prompt_config"]["therapist_system"],
+                    "client_system": doc["metadata"]["prompt_config"]["client_system"],
+                    "therapist_context": doc["metadata"]["prompt_config"]["therapist_context"],
+                    "client_context": doc["metadata"]["prompt_config"]["client_context"],
+                    "therapist_instruction": doc["metadata"]["prompt_config"]["therapist_instruction"],
+                    "client_instruction": doc["metadata"]["prompt_config"]["client_instruction"]
+                }
             }
-        } for doc in cursor]
+
+            # Get average rating and feedback count
+            conv_dict['average_rating'] = self.get_average_rating(str(doc['_id']))
+            conv_dict['feedback_count'] = len(doc.get('feedback', []))
+
+            conversations.append(conv_dict)
+
+        return conversations
 
     def delete_conversation(self, conversation_id: str) -> bool:
         """Delete a conversation from MongoDB."""

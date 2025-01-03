@@ -9,7 +9,6 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime
 from typing import Optional
-import streamlit.components.v1 as components
 
 from streamlit.web import cli as stcli
 import sys
@@ -18,7 +17,11 @@ from streamlit.web.server.server import Server
 
 # Load environment variables
 load_dotenv()
-api_key = os.getenv("ANTHROPIC_API_KEY")
+api_keys = {
+    "anthropic": os.getenv("ANTHROPIC_API_KEY"),
+    "openai": os.getenv("OPENAI_API_KEY"),
+    "google": os.getenv("GOOGLE_API_KEY")
+}
 mongodb_uri = os.getenv("MONGODB_URI")
 def update_researcher_name(conv_id):
     storage = get_storage()
@@ -106,6 +109,21 @@ def handle_streamlit_event():
             st.query_params.clear()
             st.rerun()
 
+def get_rating_emoji(rating: Optional[float]) -> str:
+    """Convert numerical rating to emoji."""
+    if rating is None:
+        return "💬"
+
+    # Round down to nearest integer
+    rating_int = int(rating)
+    rating_emojis = {
+        1: "😟",  # very_negative
+        2: "🙁",  # negative
+        3: "😐",  # neutral
+        4: "🙂",  # positive
+        5: "😊"  # very_positive
+    }
+    return rating_emojis.get(rating_int, "💬")
 
 def render_native_feedback(conv_id, current_researcher_name):
     """Render a native Streamlit feedback interface."""
@@ -118,11 +136,11 @@ def render_native_feedback(conv_id, current_researcher_name):
 
     # Rating configuration using emojis
     rating_config = {
-        'very_negative': {'icon': '👎', 'color': '#ef4444', 'label': 'Very Negative'},
-        'negative': {'icon': '⚠️', 'color': '#f97316', 'label': 'Negative'},
+        'very_negative': {'icon': '😟', 'color': '#ef4444', 'label': 'Very Negative'},
+        'negative': {'icon': '🙁️', 'color': '#f97316', 'label': 'Negative'},
         'neutral': {'icon': '😐', 'color': '#6b7280', 'label': 'Neutral'},
-        'positive': {'icon': '✔️', 'color': '#22c55e', 'label': 'Positive'},
-        'very_positive': {'icon': '👍', 'color': '#3b82f6', 'label': 'Very Positive'}
+        'positive': {'icon': '🙂️', 'color': '#22c55e', 'label': 'Positive'},
+        'very_positive': {'icon': '😊', 'color': '#3b82f6', 'label': 'Very Positive'}
     }
 
     # Custom CSS for selected button state and to hide form borders
@@ -269,6 +287,12 @@ with tab1:
             save_conversation = st.checkbox("Save Conversation", value=True)
 
             st.header("Model Parameters")
+            model = st.selectbox(
+                "Model",
+                options=list(TherapySessionGenerator.MODELS.keys()),
+                format_func=lambda x: TherapySessionGenerator.MODELS[x][0]
+            )
+            st.write("Debug - Selected model:", model)
             temperature = st.slider("Temperature", 0.0, 1.0, 0.7)
             max_tokens = st.slider("Max Tokens", 50, 500, 200)  # Changed default
             num_exchanges = st.slider("Number of Exchanges", 1, 10, 2)  # Changed default
@@ -402,7 +426,7 @@ with tab1:
             )
 
             # Initialize generator
-            generator = TherapySessionGenerator(api_key=api_key)
+            generator = TherapySessionGenerator(api_keys=api_keys)
 
             # Create placeholder for conversation
             messages = []
@@ -413,10 +437,11 @@ with tab1:
 
                 # Clear the status once we start getting responses
                 status_container.empty()
-
+                st.write("Debug - Passing model:", model)
                 for message, current_session in generator.generate_session(
                         client=client,
                         therapist=therapist,
+                        model=model,
                         temperature=temperature,
                         max_tokens=max_tokens,
                         num_exchanges=num_exchanges,
@@ -459,7 +484,7 @@ with tab2:
         )
 
     # Create table header
-    header_cols = st.columns([1.0, 0.7, 0.5, 0.7, 2.0, 1.5, 2.5, 0.5, 0.7, 0.6])
+    header_cols = st.columns([1.0, 0.7, 0.5, 0.7, 1.7, 1.5, 2.3, 0.6, 0.5, 0.7, 0.6])
     header_cols[0].markdown("**Researcher**")
     header_cols[1].markdown("**Client**")
     header_cols[2].markdown("**Age**")
@@ -467,9 +492,10 @@ with tab2:
     header_cols[4].markdown("**Problem**")
     header_cols[5].markdown("**Approach**")
     header_cols[6].markdown("**Context**")
-    header_cols[7].markdown("**View**")
-    header_cols[8].markdown("**Feedback**")
-    header_cols[9].markdown("**Delete**")
+    header_cols[7].markdown("**Model**")
+    header_cols[8].markdown("**View**")
+    header_cols[9].markdown("**Feedback**")
+    header_cols[10].markdown("**Delete**")
 
     # Get storage only when needed
     storage = get_storage()
@@ -490,7 +516,7 @@ with tab2:
 
         with row_container:
             # Main row with columns
-            cols = st.columns([1.0, 0.7, 0.5, 0.7, 2.0, 1.5, 2.5, 0.6, 0.6, 0.6])
+            cols = st.columns([1.0, 0.7, 0.5, 0.7, 1.7, 1.5, 2.3, 0.6, 0.5, 0.7, 0.6])
 
             # Basic information columns
             researcher_name = cols[0].text_input(
@@ -504,15 +530,16 @@ with tab2:
             cols[1].write(conv['client_name'])
             cols[2].write(str(conv['age']))
             cols[3].write(conv['gender'])
-            cols[4].write(conv['presenting_problem'][:35] + '...' if len(conv['presenting_problem']) > 35 else conv[
+            cols[4].write(conv['presenting_problem'][:27] + '...' if len(conv['presenting_problem']) > 27 else conv[
                 'presenting_problem'])
             approach_display = conv['approach'].replace('You are practicing ', '').replace('Therapy', '').strip()
             cols[5].write(approach_display[:30])
-            cols[6].write(conv.get('context', '')[:40] + '...' if conv.get('context', '') and len(
-                conv.get('context', '')) > 40 else conv.get('context', ''))
-
+            cols[6].write(conv.get('context', '')[:38] + '...' if conv.get('context', '') and len(
+                conv.get('context', '')) > 38 else conv.get('context', ''))
+            cols[7].write(
+                TherapySessionGenerator.MODELS.get(conv['metadata']['model'], (conv['metadata']['model'],))[0][:6])
             # View button
-            if cols[7].button("👁️", key=f"view_{conv['id']}", help="View conversation"):
+            if cols[8].button("👁️", key=f"view_{conv['id']}", help="View conversation"):
                 if st.session_state.expanded_conversation == conv['id']:
                     st.session_state.expanded_conversation = None
                 else:
@@ -520,9 +547,16 @@ with tab2:
                     st.session_state.expanded_feedback = None
 
             # Feedback button
-            feedback_count = storage.get_feedback_count(conv['id'])
-            feedback_btn_label = f"💬 {feedback_count}" if feedback_count > 0 else "💬"
-            if cols[8].button(feedback_btn_label, key=f"feedback_{conv['id']}", help="View/add feedback"):
+            feedback_count = conv['feedback_count']
+            average_rating = conv.get('average_rating')
+            emoji = get_rating_emoji(average_rating)
+            feedback_btn_label = f"{emoji} {feedback_count}" if feedback_count > 0 else "💬"
+
+            if cols[9].button(
+                    feedback_btn_label,
+                    key=f"feedback_{conv['id']}",
+                    help="View/add feedback"
+            ):
                 if st.session_state.expanded_feedback == conv['id']:
                     st.session_state.expanded_feedback = None
                 else:
@@ -530,7 +564,7 @@ with tab2:
                     st.session_state.expanded_conversation = None
 
             # Delete button
-            if cols[9].button("🗑️", key=f"delete_{conv['id']}", help="Delete conversation"):
+            if cols[10].button("🗑️", key=f"delete_{conv['id']}", help="Delete conversation"):
                 if storage.delete_conversation(conv['id']):
                     st.success("Conversation deleted")
                     st.rerun()
@@ -543,8 +577,8 @@ with tab2:
                 if session:
                     # Show timestamp at the top
                     st.markdown(
-                        f"**Session Details** - {datetime.fromisoformat(conv['timestamp']).strftime('%Y-%m-%d %H:%M')}")
-
+                        f"**Generated on:** {datetime.fromisoformat(conv['timestamp']).strftime('%Y-%m-%d %H:%M')}. "
+                        f"**Model:** {TherapySessionGenerator.MODELS.get(session.metadata.model, (session.metadata.model,))[0]}")
                     # Create two columns for client and therapist profiles
                     profile_col1, profile_col2 = st.columns(2)
 

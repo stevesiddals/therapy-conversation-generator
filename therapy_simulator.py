@@ -1,11 +1,85 @@
 # therapy_simulator.py
-import json
+
 import random
-from typing import List, Dict, Optional
+from openai import OpenAI
+import google.generativeai as genai
+import anthropic
+from abc import ABC, abstractmethod
+from typing import List, Dict, Optional, Any, Union
 from dataclasses import dataclass, asdict
 from datetime import datetime
-import anthropic
-import streamlit as st
+
+class ModelInterface(ABC):
+    @abstractmethod
+    def generate_message(self, system: str, messages: list, max_tokens: int, temperature: float) -> str:
+        pass
+
+class ClaudeModel(ModelInterface):
+    MODEL_NAME = "claude-3-sonnet-20240229"
+    DISPLAY_NAME = "Anthropic Claude 3.5 Sonnet"
+
+    def __init__(self, api_key: str):
+        self.client = anthropic.Client(api_key=api_key)
+
+    def generate_message(self, system: str, messages: list, max_tokens: int, temperature: float) -> str:
+        response = self.client.messages.create(
+            model=self.MODEL_NAME,
+            system=system,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature
+        )
+        return self._extract_text_content(response)
+
+    def _extract_text_content(self, response) -> str:
+        text_content = []
+        for block in response.content:
+            if block.type == "text":
+                text_content.append(block.text)
+        return " ".join(text_content).strip()
+
+class GPT4Model(ModelInterface):
+    MODEL_NAME = "gpt-4o-mini"
+    DISPLAY_NAME = "OpenAI GPT-4o Mini"
+
+    def __init__(self, api_key: str):
+        self.client = OpenAI(api_key=api_key)
+
+    def generate_message(self, system: str, messages: list, max_tokens: int, temperature: float) -> str:
+        openai_messages = [{"role": "system", "content": system}]
+        for msg in messages:
+            openai_messages.append({"role": msg["role"], "content": msg["content"]})
+
+        response = self.client.chat.completions.create(
+            model=self.MODEL_NAME,
+            messages=openai_messages,
+            max_tokens=max_tokens,
+            temperature=temperature
+        )
+        return response.choices[0].message.content
+
+
+class GeminiModel(ModelInterface):
+    MODEL_NAME = "gemini-pro"
+    DISPLAY_NAME = "Google Gemini Pro"
+
+    def __init__(self, api_key: str):
+        genai.configure(api_key=api_key)
+        self.model = genai.GenerativeModel(self.MODEL_NAME)
+
+    def generate_message(self, system: str, messages: list, max_tokens: int, temperature: float) -> str:
+        combined_prompt = f"{system}\n\n"
+        for msg in messages:
+            combined_prompt += f"{msg['role']}: {msg['content']}\n"
+
+        response = self.model.generate_content(
+            combined_prompt,
+            generation_config=genai.types.GenerationConfig(
+                max_output_tokens=max_tokens,
+                temperature=temperature
+            )
+        )
+        return response.text
 
 @dataclass
 class PromptConfig:
@@ -83,18 +157,32 @@ class TherapySession:
     metadata: SessionMetadata
     conversation: List[Dict[str, str]]
 
-
 class TherapySessionGenerator:
-    def __init__(self, api_key: str):
-        self.client = anthropic.Client(api_key=api_key)
+    MODELS = {
+        ClaudeModel.MODEL_NAME: (ClaudeModel.DISPLAY_NAME, ClaudeModel),
+        GPT4Model.MODEL_NAME: (GPT4Model.DISPLAY_NAME, GPT4Model),
+        GeminiModel.MODEL_NAME: (GeminiModel.DISPLAY_NAME, GeminiModel)
+    }
 
-    def _extract_text_content(self, response) -> str:
-        """Extract and combine all text content from response blocks."""
-        text_content = []
-        for block in response.content:
-            if block.type == "text":
-                text_content.append(block.text)
-        return " ".join(text_content).strip()
+    def __init__(self, api_keys: Dict[str, str]):
+        self.api_keys = api_keys
+        self.model_instances = {}
+
+    def _get_model_instance(self, model_name: str) -> ModelInterface:
+        if model_name not in self.model_instances:
+            api_key = self._get_api_key_for_model(model_name)
+            model_class = self.MODELS[model_name][1]
+            self.model_instances[model_name] = model_class(api_key)
+        return self.model_instances[model_name]
+
+    def _get_api_key_for_model(self, model_name: str) -> str:
+        if model_name.startswith("claude"):
+            return self.api_keys["anthropic"]
+        elif model_name.startswith("gpt"):
+            return self.api_keys["openai"]
+        elif model_name.startswith("gemini"):
+            return self.api_keys["google"]
+        raise ValueError(f"Unknown model: {model_name}")
 
     def generate_sample_client(self) -> ClientProfile:
         """Generate a random client profile from predefined templates."""
@@ -135,7 +223,7 @@ class TherapySessionGenerator:
             client: Optional[ClientProfile] = None,
             therapist: Optional[TherapistProfile] = None,
             num_exchanges: int = 3,
-            model: str = "claude-3-sonnet-20240229",
+            model: str = "claude-3-sonnet",
             max_tokens: int = 250,
             temperature: float = 0.7,
             prompt_config: Optional[PromptConfig] = None
@@ -159,19 +247,18 @@ class TherapySessionGenerator:
         )
         conversation = []
 
+        model_instance = self._get_model_instance(model)
+
         # Initial client sharing
         client_prompt = f"""{client.format_context(prompt_config.client_context)}
 
 Share what brings you to therapy today:"""
 
-        client_response = self._extract_text_content(
-            self.client.messages.create(
-                model=model,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                system=prompt_config.client_system,
-                messages=[{"role": "user", "content": client_prompt}]
-            )
+        client_response = model_instance.generate_message(
+            system=prompt_config.client_system,
+            messages=[{"role": "user", "content": client_prompt}],
+            max_tokens=max_tokens,
+            temperature=temperature
         )
 
         message = {"role": "client", "content": client_response}
@@ -192,14 +279,11 @@ Conversation so far:
 
 {prompt_config.therapist_instruction}"""
 
-            therapist_response = self._extract_text_content(
-                self.client.messages.create(
-                    model=model,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    system=prompt_config.therapist_system,
-                    messages=[{"role": "user", "content": therapist_prompt}]
-                )
+            therapist_response = model_instance.generate_message(
+                system=prompt_config.therapist_system,
+                messages=[{"role": "user", "content": therapist_prompt}],
+                max_tokens=max_tokens,
+                temperature=temperature
             )
 
             message = {"role": "therapist", "content": therapist_response}
@@ -217,14 +301,11 @@ Conversation so far:
 
 {prompt_config.client_instruction}"""
 
-            client_response = self._extract_text_content(
-                self.client.messages.create(
-                    model=model,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    system=prompt_config.client_system,
-                    messages=[{"role": "user", "content": client_prompt}]
-                )
+            client_response = model_instance.generate_message(
+                system=prompt_config.client_system,
+                messages=[{"role": "user", "content": client_prompt}],
+                max_tokens=max_tokens,
+                temperature=temperature
             )
 
             message = {"role": "client", "content": client_response}

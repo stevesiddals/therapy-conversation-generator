@@ -1,9 +1,9 @@
 # mongo_storage.py
 from pymongo import MongoClient
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import List, Optional, Dict
 from dataclasses import asdict
-
+from bson.objectid import ObjectId
 
 class MongoStorage:
     def __init__(self, connection_string: str, database_name: str = "therapy_conversations"):
@@ -170,3 +170,77 @@ class MongoStorage:
             {"$set": {"researcher": new_researcher}}
         )
         return result.modified_count > 0
+
+    def add_feedback(self, conversation_id: str, researcher_name: str, comment: str,
+                     rating: Optional[str] = None) -> bool:
+        """Add feedback to a conversation.
+
+        Args:
+            conversation_id: The ID of the conversation
+            researcher_name: Name of the researcher providing feedback
+            comment: The feedback comment
+            rating: Optional rating (positive/negative/neutral)
+
+        Returns:
+            bool: True if feedback was added successfully
+        """
+        feedback_entry = {
+            "researcher_name": researcher_name,
+            "timestamp": datetime.now(UTC),
+            "comment": comment,
+            "rating": rating
+        }
+
+        result = self.conversations.update_one(
+            {"_id": ObjectId(conversation_id)},
+            {"$push": {"feedback": feedback_entry}}
+        )
+        return result.modified_count > 0
+
+    def get_feedback(self, conversation_id: str) -> List[Dict]:
+        """Get all feedback for a conversation.
+
+        Args:
+            conversation_id: The ID of the conversation
+
+        Returns:
+            List of feedback entries
+        """
+        conversation = self.conversations.find_one(
+            {"_id": ObjectId(conversation_id)},
+            {"feedback": 1}
+        )
+
+        return conversation.get("feedback", []) if conversation else []
+
+    def delete_feedback(self, conversation_id: str, feedback_timestamp: datetime) -> bool:
+        """Delete a specific feedback entry from a conversation.
+
+        Args:
+            conversation_id: The ID of the conversation
+            feedback_timestamp: Timestamp of the feedback to delete
+
+        Returns:
+            bool: True if feedback was deleted successfully
+        """
+        result = self.conversations.update_one(
+            {"_id": ObjectId(conversation_id)},
+            {"$pull": {"feedback": {"timestamp": feedback_timestamp}}}
+        )
+        return result.modified_count > 0
+
+    def get_feedback_count(self, conversation_id: str) -> int:
+        """Get the number of feedback entries for a conversation.
+
+        Args:
+            conversation_id: The ID of the conversation
+
+        Returns:
+            int: Number of feedback entries
+        """
+        conversation = self.conversations.find_one(
+            {"_id": ObjectId(conversation_id)},
+            {"feedback": 1}
+        )
+
+        return len(conversation.get("feedback", [])) if conversation else 0
