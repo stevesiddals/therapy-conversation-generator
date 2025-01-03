@@ -292,7 +292,6 @@ with tab1:
                 options=list(TherapySessionGenerator.MODELS.keys()),
                 format_func=lambda x: TherapySessionGenerator.MODELS[x][0]
             )
-            st.write("Debug - Selected model:", model)
             temperature = st.slider("Temperature", 0.0, 1.0, 0.7)
             max_tokens = st.slider("Max Tokens", 50, 500, 200)  # Changed default
             num_exchanges = st.slider("Number of Exchanges", 1, 10, 2)  # Changed default
@@ -437,7 +436,6 @@ with tab1:
 
                 # Clear the status once we start getting responses
                 status_container.empty()
-                st.write("Debug - Passing model:", model)
                 for message, current_session in generator.generate_session(
                         client=client,
                         therapist=therapist,
