@@ -159,8 +159,8 @@ class TherapySession:
 
 class TherapySessionGenerator:
     MODELS = {
-        ClaudeModel.MODEL_NAME: (ClaudeModel.DISPLAY_NAME, ClaudeModel),
         GPT4Model.MODEL_NAME: (GPT4Model.DISPLAY_NAME, GPT4Model),
+        ClaudeModel.MODEL_NAME: (ClaudeModel.DISPLAY_NAME, ClaudeModel),
         GeminiModel.MODEL_NAME: (GeminiModel.DISPLAY_NAME, GeminiModel)
     }
 
