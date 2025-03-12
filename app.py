@@ -284,7 +284,7 @@ with tab1:
         with st.sidebar:
             # Storage options (at top, no header)
             researcher = st.text_input("Researcher Name", value="Anonymous")
-            save_conversation = st.checkbox("Save Conversation", value=True)
+            save_conversation = st.checkbox("Save Conversation", value=False)
 
             st.header("Model Parameters")
             model = st.selectbox(
