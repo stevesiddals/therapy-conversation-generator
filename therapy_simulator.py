@@ -159,9 +159,9 @@ class TherapySession:
 
 class TherapySessionGenerator:
     MODELS = {
-        GPT4Model.MODEL_NAME: (GPT4Model.DISPLAY_NAME, GPT4Model),
+        GeminiModel.MODEL_NAME: (GeminiModel.DISPLAY_NAME, GeminiModel),
         ClaudeModel.MODEL_NAME: (ClaudeModel.DISPLAY_NAME, ClaudeModel),
-        GeminiModel.MODEL_NAME: (GeminiModel.DISPLAY_NAME, GeminiModel)
+        GPT4Model.MODEL_NAME: (GPT4Model.DISPLAY_NAME, GPT4Model)
     }
 
     def __init__(self, api_keys: Dict[str, str]):
