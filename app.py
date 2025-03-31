@@ -283,8 +283,8 @@ with tab1:
         # Sidebar configuration
         with st.sidebar:
             # Storage options (at top, no header)
-            researcher = st.text_input("Researcher Name", value="Anonymous")
-            save_conversation = st.checkbox("Save Conversation", value=False)
+            researcher = st.text_input("Researcher name", value="Anonymous")
+            save_conversation = st.checkbox("Save conversations", value=False)
 
             st.header("Model Parameters")
             model = st.selectbox(
@@ -309,12 +309,12 @@ with tab1:
                 )
 
                 st.subheader("Context Templates")
-                therapist_context = st.text_area(
+                therapist_context_template = st.text_area(
                     "Therapist Context Template",
                     """{approach} {style} What follows is the therapy conversation so far."""
                 )
 
-                client_context = st.text_area(
+                client_context_template = st.text_area(
                     "Client Context Template",
                     """You are {name}, {age} years old and {gender}. You came to therapy because {presenting_problem}. Your context: {context}. What follows is the therapy conversation so far."""
                 )
@@ -418,8 +418,8 @@ with tab1:
             prompt_config = PromptConfig(
                 therapist_system=therapist_system,
                 client_system=client_system,
-                therapist_context=therapist_context,
-                client_context=client_context,
+                therapist_context_template=therapist_context_template,
+                client_context_template=client_context_template,
                 therapist_instruction=therapist_instruction,
                 client_instruction=client_instruction
             )

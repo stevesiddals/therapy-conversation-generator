@@ -15,8 +15,8 @@ class ModelInterface(ABC):
         pass
 
 class ClaudeModel(ModelInterface):
-    MODEL_NAME = "claude-3-sonnet-20240229"
-    DISPLAY_NAME = "Anthropic Claude 3.5 Sonnet"
+    MODEL_NAME = "claude-3-7-sonnet-latest"
+    DISPLAY_NAME = "Anthropic Claude 3.7 Sonnet"
 
     def __init__(self, api_key: str):
         self.client = anthropic.Client(api_key=api_key)
@@ -39,8 +39,8 @@ class ClaudeModel(ModelInterface):
         return " ".join(text_content).strip()
 
 class GPT4Model(ModelInterface):
-    MODEL_NAME = "gpt-4o-mini"
-    DISPLAY_NAME = "OpenAI GPT-4o Mini"
+    MODEL_NAME = "gpt-4o-2024-08-06"
+    DISPLAY_NAME = "OpenAI ChatGPT-4o"
 
     def __init__(self, api_key: str):
         self.client = OpenAI(api_key=api_key)
@@ -60,8 +60,8 @@ class GPT4Model(ModelInterface):
 
 
 class GeminiModel(ModelInterface):
-    MODEL_NAME = "gemini-pro"
-    DISPLAY_NAME = "Google Gemini Pro"
+    MODEL_NAME = "gemini-2.0-flash"
+    DISPLAY_NAME = "Google Gemini 2.0 Flash"
 
     def __init__(self, api_key: str):
         genai.configure(api_key=api_key)
@@ -86,11 +86,11 @@ class PromptConfig:
     therapist_system: str = "You are a therapist."
     client_system: str = "You are a client in a therapy session."
 
-    therapist_context: str = """You are practicing {approach}, with a {style} style. 
+    therapist_context_template: str = """You are practicing {approach}, with a {style} style. 
 Remain compassionate and validating, providing a safe space for the client to explore their experiences. 
 What follows is the therapy conversation so far."""
 
-    client_context: str = """You are {name}, {age} years old and {gender}. 
+    client_context_template: str = """You are {name}, {age} years old and {gender}. 
 You came to therapy because {presenting_problem}. 
 Your context: {context}. What follows is the therapy conversation so far."""
 
@@ -250,7 +250,7 @@ class TherapySessionGenerator:
         model_instance = self._get_model_instance(model)
 
         # Initial client sharing
-        client_prompt = f"""{client.format_context(prompt_config.client_context)}
+        client_prompt = f"""{client.format_context(prompt_config.client_context_template)}
 
 Share what brings you to therapy today:"""
 
@@ -262,6 +262,7 @@ Share what brings you to therapy today:"""
         )
 
         message = {"role": "client", "content": client_response}
+#        print_message = {"role": "client", "content": f"""Client template: {prompt_config.client_context_template}\n\nClient prompt: {client_prompt}\n\nClient response: {client_response}"""}
         conversation.append(message)
         yield message, TherapySession(metadata=metadata,
                                       conversation=conversation)  # Yield both message and current session
@@ -272,7 +273,7 @@ Share what brings you to therapy today:"""
             convo_history = "\n\n".join([f"{msg['role'].capitalize()}: {msg['content']}"
                                          for msg in conversation])
 
-            therapist_prompt = f"""{therapist.format_context(prompt_config.therapist_context)}
+            therapist_prompt = f"""{therapist.format_context(prompt_config.therapist_context_template)}
 
 Conversation so far:
 {convo_history}
@@ -287,6 +288,8 @@ Conversation so far:
             )
 
             message = {"role": "therapist", "content": therapist_response}
+#            print_message = {"role": "therapist",
+#                       "content": f"""Therapist prompt: {therapist_prompt}\n\nTherapist response: {therapist_response}"""}
             conversation.append(message)
             yield message, TherapySession(metadata=metadata, conversation=conversation)
 
@@ -294,7 +297,7 @@ Conversation so far:
             convo_history = "\n\n".join([f"{msg['role'].capitalize()}: {msg['content']}"
                                          for msg in conversation])
 
-            client_prompt = f"""{client.format_context(prompt_config.client_context)}
+            client_prompt = f"""{client.format_context(prompt_config.client_context_template)}
 
 Conversation so far:
 {convo_history}
@@ -309,5 +312,7 @@ Conversation so far:
             )
 
             message = {"role": "client", "content": client_response}
+#           print_message = {"role": "client",
+#                            "content": f"""Client template: {prompt_config.client_context_template}\n\nClient prompt: {client_prompt}\n\nClient response: {client_response}"""}
             conversation.append(message)
             yield message, TherapySession(metadata=metadata, conversation=conversation)
