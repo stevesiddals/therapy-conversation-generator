@@ -14,7 +14,17 @@ class MongoStorage:
 
     def save_therapy_session(self, session: 'TherapySession', researcher: Optional[str] = None) -> str:
         """Save a therapy session to MongoDB."""
+
         # Convert session to dictionary
+
+        # But first, map new prompt config fieldnames to old mongodb fieldnames
+
+        prompt_config_dict = asdict(session.metadata.prompt_config)
+        if 'therapist_context_template' in prompt_config_dict:
+            prompt_config_dict['therapist_context'] = prompt_config_dict.pop('therapist_context_template')
+        if 'client_context_template' in prompt_config_dict:
+            prompt_config_dict['client_context'] = prompt_config_dict.pop('client_context_template')
+
         conversation_data = {
             "metadata": {
                 "timestamp": session.metadata.timestamp,
@@ -22,7 +32,7 @@ class MongoStorage:
                 "max_tokens": session.metadata.max_tokens,
                 "temperature": session.metadata.temperature,
                 "num_exchanges": session.metadata.num_exchanges,
-                "prompt_config": asdict(session.metadata.prompt_config),
+                "prompt_config": prompt_config_dict,
                 "client_profile": asdict(session.metadata.client_profile),
                 "therapist_profile": asdict(session.metadata.therapist_profile)
             },
@@ -34,6 +44,41 @@ class MongoStorage:
         # Insert into MongoDB
         result = self.conversations.insert_one(conversation_data)
         return str(result.inserted_id)
+
+    # def get_therapy_session(self, conversation_id: str) -> Optional['TherapySession']:
+    #     """Retrieve a therapy session from MongoDB."""
+    #     from therapy_simulator import (
+    #         TherapySession, SessionMetadata, PromptConfig,
+    #         ClientProfile, TherapistProfile
+    #     )
+    #
+    #     # Find conversation by ID
+    #     from bson.objectid import ObjectId
+    #     conversation_data = self.conversations.find_one({"_id": ObjectId(conversation_id)})
+    #
+    #     if not conversation_data:
+    #         return None
+    #
+    #     # Reconstruct objects
+    #     prompt_config = PromptConfig(**conversation_data["metadata"]["prompt_config"])
+    #     client_profile = ClientProfile(**conversation_data["metadata"]["client_profile"])
+    #     therapist_profile = TherapistProfile(**conversation_data["metadata"]["therapist_profile"])
+    #
+    #     metadata = SessionMetadata(
+    #         timestamp=conversation_data["metadata"]["timestamp"],
+    #         model=conversation_data["metadata"]["model"],
+    #         max_tokens=conversation_data["metadata"]["max_tokens"],
+    #         temperature=conversation_data["metadata"]["temperature"],
+    #         prompt_config=prompt_config,
+    #         client_profile=client_profile,
+    #         therapist_profile=therapist_profile,
+    #         num_exchanges=conversation_data["metadata"]["num_exchanges"]
+    #     )
+    #
+    #     return TherapySession(
+    #         metadata=metadata,
+    #         conversation=conversation_data["conversation"]
+    #     )
 
     def get_therapy_session(self, conversation_id: str) -> Optional['TherapySession']:
         """Retrieve a therapy session from MongoDB."""
@@ -49,8 +94,17 @@ class MongoStorage:
         if not conversation_data:
             return None
 
+        # Get the prompt config dictionary and map the old field names to the new ones
+        prompt_config_dict = conversation_data["metadata"]["prompt_config"]
+
+        # Map old field names to new field names
+        if "therapist_context" in prompt_config_dict:
+            prompt_config_dict["therapist_context_template"] = prompt_config_dict.pop("therapist_context")
+        if "client_context" in prompt_config_dict:
+            prompt_config_dict["client_context_template"] = prompt_config_dict.pop("client_context")
+
         # Reconstruct objects
-        prompt_config = PromptConfig(**conversation_data["metadata"]["prompt_config"])
+        prompt_config = PromptConfig(**prompt_config_dict)
         client_profile = ClientProfile(**conversation_data["metadata"]["client_profile"])
         therapist_profile = TherapistProfile(**conversation_data["metadata"]["therapist_profile"])
 
@@ -69,6 +123,9 @@ class MongoStorage:
             metadata=metadata,
             conversation=conversation_data["conversation"]
         )
+
+
+
 
     def get_average_rating(self, conversation_id: str) -> Optional[float]:
         """Calculate the average rating for a conversation.
