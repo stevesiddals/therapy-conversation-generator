@@ -1,6 +1,6 @@
 # mongo_storage.py
 from pymongo import MongoClient
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from typing import List, Optional, Dict
 from dataclasses import asdict
 from bson.objectid import ObjectId
@@ -212,7 +212,7 @@ class MongoStorage:
         """
         feedback_entry = {
             "researcher_name": researcher_name,
-            "timestamp": datetime.now(UTC),
+            "timestamp": datetime.now(timezone.utc),
             "comment": comment,
             "rating": rating
         }
