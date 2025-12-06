@@ -10,11 +10,6 @@ from dotenv import load_dotenv
 from datetime import datetime
 from typing import Optional
 
-from streamlit.web import cli as stcli
-import sys
-import json
-from streamlit.web.server.server import Server
-
 # Load environment variables
 load_dotenv()
 api_keys = {
@@ -24,7 +19,7 @@ api_keys = {
 }
 mongodb_uri = os.getenv("MONGODB_URI")
 def update_researcher_name(conv_id):
-    storage = get_storage()
+    _storage = get_storage()
     new_name = st.session_state[f"researcher_{conv_id}"]
     storage.update_researcher(conv_id, new_name)
 
@@ -34,24 +29,24 @@ def get_storage():
     return MongoStorage(mongodb_uri)
 
 # Feedback functions
-def handle_add_feedback(conv_id: str, researcher: str, comment: str, rating: Optional[str] = None):
+def handle_add_feedback(conv_id: str, _researcher: str, comment: str, rating: Optional[str] = None):
     """Handle adding feedback through Streamlit."""
-    storage = get_storage()
+    _storage = get_storage()
 
     # Debug before save
     st.write("=== Debug: Adding Feedback ===")
     st.write(f"Conversation ID: {conv_id}")
-    st.write(f"Researcher: {researcher}")
+    st.write(f"Researcher: {_researcher}")
     st.write(f"Comment: {comment}")
     st.write(f"Rating: {rating}")
 
-    success = storage.add_feedback(conv_id, researcher, comment, rating)
+    success = _storage.add_feedback(conv_id, _researcher, comment, rating)
 
     if success:
         # Debug after save
         st.write("=== Debug: Save Result ===")
         st.write("Feedback saved successfully")
-        feedbacks = storage.get_feedback(conv_id)
+        feedbacks = _storage.get_feedback(conv_id)
         st.write(f"Total feedback count: {len(feedbacks)}")
         st.write("Latest feedback:", feedbacks[-1] if feedbacks else "None")
 
@@ -59,11 +54,12 @@ def handle_add_feedback(conv_id: str, researcher: str, comment: str, rating: Opt
         st.rerun()
     else:
         st.error("Failed to add feedback")
+        return False
 
 def handle_delete_feedback(conv_id: str, timestamp):
     """Handle deleting feedback through Streamlit."""
-    storage = get_storage()
-    success = storage.delete_feedback(conv_id, timestamp)
+    _storage = get_storage()
+    success = _storage.delete_feedback(conv_id, timestamp)
     if success:
         st.success("Feedback deleted")
         st.rerun()
@@ -86,13 +82,13 @@ def handle_streamlit_event():
             conv_id = query_params.get('convId', '')
 
             if event_type == 'add_feedback':
-                researcher = query_params.get('researcher', 'Anonymous')
+                _researcher = query_params.get('researcher', 'Anonymous')
                 comment = query_params.get('comment', '')
                 rating = query_params.get('rating', 'neutral')
 
                 if comment.strip():
-                    debug_container.info(f"Adding feedback: {researcher} - {comment}")
-                    success = handle_add_feedback(conv_id, researcher, comment, rating)
+                    debug_container.info(f"Adding feedback: {_researcher} - {comment}")
+                    success = handle_add_feedback(conv_id, _researcher, comment, rating)
                     if success:
                         debug_container.success("Feedback added successfully!")
                     else:
@@ -102,12 +98,12 @@ def handle_streamlit_event():
                     st.query_params.clear()
                     st.rerun()
 
-        elif event_type == 'delete_feedback':
-            timestamp = query_params.get('timestamp', '')
-            handle_delete_feedback(conv_id, timestamp)
-            # Clear query params after handling
-            st.query_params.clear()
-            st.rerun()
+            elif event_type == 'delete_feedback':
+                timestamp = query_params.get('timestamp', '')
+                handle_delete_feedback(conv_id, timestamp)
+                # Clear query params after handling
+                st.query_params.clear()
+                st.rerun()
 
 def get_rating_emoji(rating: Optional[float]) -> str:
     """Convert numerical rating to emoji."""
@@ -127,8 +123,8 @@ def get_rating_emoji(rating: Optional[float]) -> str:
 
 def render_native_feedback(conv_id, current_researcher_name):
     """Render a native Streamlit feedback interface."""
-    storage = get_storage()
-    feedback_list = storage.get_feedback(conv_id)
+    _storage = get_storage()
+    feedback_list = _storage.get_feedback(conv_id)
 
     # Initialize session state for rating if not exists
     if f"rating_{conv_id}" not in st.session_state:
@@ -169,8 +165,8 @@ def render_native_feedback(conv_id, current_researcher_name):
     else:
         for feedback in feedback_list:
             with st.container():
-                col1, col2, col3 = st.columns([6, 1, 1])
-                with col1:
+                sub_col1, sub_col2, sub_col3 = st.columns([6, 1, 1])
+                with sub_col1:
                     if isinstance(feedback['timestamp'], str):
                         timestamp_str = datetime.fromisoformat(feedback['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
                     else:
@@ -182,15 +178,15 @@ def render_native_feedback(conv_id, current_researcher_name):
                         {feedback['comment']}
                         """
                     )
-                with col2:
+                with sub_col2:
                     rating_info = rating_config[feedback.get('rating', 'neutral')]
                     st.markdown(
                         f"<div style='text-align: center; font-size: 1.2em;'>{rating_info['icon']}</div>",
                         unsafe_allow_html=True
                     )
-                with col3:
+                with sub_col3:
                     if st.button("🗑️", key=f"delete_{conv_id}_{timestamp_str.replace(' ', '_')}"):
-                        if storage.delete_feedback(conv_id, feedback['timestamp']):
+                        if _storage.delete_feedback(conv_id, feedback['timestamp']):
                             st.success("Feedback deleted")
                             st.rerun()
                         else:
@@ -231,7 +227,7 @@ def render_native_feedback(conv_id, current_researcher_name):
 
         if submitted and comment.strip():
             # Use current_researcher_name from the sidebar
-            success = storage.add_feedback(
+            success = _storage.add_feedback(
                 conv_id,
                 current_researcher_name,  # Use the current researcher name
                 comment,
@@ -429,7 +425,7 @@ with tab1:
 
             # Create placeholder for conversation
             messages = []
-            session = None
+            session: Optional[TherapySession] = None
 
             # Generate and display messages as they come
             with st.spinner("Generating conversation..."):

@@ -1,9 +1,13 @@
 # mongo_storage.py
-from pymongo import MongoClient
-from datetime import datetime
+from pymongo import MongoClient # type: ignore
+from datetime import datetime, timezone
 from typing import List, Optional, Dict
 from dataclasses import asdict
 from bson.objectid import ObjectId
+from therapy_simulator import (
+            TherapySession, SessionMetadata, PromptConfig,
+            ClientProfile, TherapistProfile
+        )
 
 class MongoStorage:
     def __init__(self, connection_string: str, database_name: str = "therapy_conversations"):
@@ -28,7 +32,7 @@ class MongoStorage:
             },
             "conversation": session.conversation,
             "researcher": researcher,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc),
         }
 
         result = self.conversations.insert_one(conversation_data)
@@ -36,10 +40,6 @@ class MongoStorage:
 
     def get_therapy_session(self, conversation_id: str) -> Optional['TherapySession']:
         """Retrieve a therapy session from MongoDB."""
-        from therapy_simulator import (
-            TherapySession, SessionMetadata, PromptConfig,
-            ClientProfile, TherapistProfile
-        )
 
         # Find conversation by ID
         from bson.objectid import ObjectId
