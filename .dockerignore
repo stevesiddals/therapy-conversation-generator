@@ -3,7 +3,7 @@
 # 1. Python temporary files and venv
 __pycache__
 *.pyc
-.venv
+.venv/
 
 # 2. Local development files
 .env
