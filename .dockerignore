@@ -1,0 +1,15 @@
+# Exclude files/folders that are temporary or not needed at runtime
+
+# 1. Python temporary files
+__pycache__
+*.pyc
+
+# 2. Local development files
+.env
+.gitignore
+
+# 3. Unnecessary code/data
+diagnose_db.py
+
+# 4. The Dockerfile itself (optional, but good practice)
+Dockerfile
