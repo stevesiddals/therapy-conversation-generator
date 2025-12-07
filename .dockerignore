@@ -1,8 +1,9 @@
 # Exclude files/folders that are temporary or not needed at runtime
 
-# 1. Python temporary files
+# 1. Python temporary files and venv
 __pycache__
 *.pyc
+.venv
 
 # 2. Local development files
 .env
