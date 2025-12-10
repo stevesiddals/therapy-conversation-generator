@@ -18,15 +18,31 @@ api_keys = {
     "google": os.getenv("GOOGLE_API_KEY")
 }
 mongodb_uri = os.getenv("MONGODB_URI")
+
+# Initialize session state for tracking saved conversations
+if 'current_conversation_saved' not in st.session_state:
+    st.session_state.current_conversation_saved = False
+if 'current_session' not in st.session_state:
+    st.session_state.current_session = None
+if 'current_messages' not in st.session_state:
+    st.session_state.current_messages = []
+if 'current_researcher' not in st.session_state:
+    st.session_state.current_researcher = "Anonymous"
+if 'show_conversation' not in st.session_state:
+    st.session_state.show_conversation = False
+
+
 def update_researcher_name(conv_id):
     _storage = get_storage()
     new_name = st.session_state[f"researcher_{conv_id}"]
     storage.update_researcher(conv_id, new_name)
 
+
 # Initialize MongoDB storage lazily
 @st.cache_resource
 def get_storage():
     return MongoStorage(mongodb_uri)
+
 
 # Feedback functions
 def handle_add_feedback(conv_id: str, _researcher: str, comment: str, rating: Optional[str] = None):
@@ -55,6 +71,7 @@ def handle_add_feedback(conv_id: str, _researcher: str, comment: str, rating: Op
     else:
         st.error("Failed to add feedback")
         return False
+
 
 def handle_delete_feedback(conv_id: str, timestamp):
     """Handle deleting feedback through Streamlit."""
@@ -105,6 +122,7 @@ def handle_streamlit_event():
                 st.query_params.clear()
                 st.rerun()
 
+
 def get_rating_emoji(rating: Optional[float]) -> str:
     """Convert numerical rating to emoji."""
     if rating is None:
@@ -120,6 +138,7 @@ def get_rating_emoji(rating: Optional[float]) -> str:
         5: "😊"  # very_positive
     }
     return rating_emojis.get(rating_int, "💬")
+
 
 def render_native_feedback(conv_id, current_researcher_name):
     """Render a native Streamlit feedback interface."""
@@ -240,6 +259,7 @@ def render_native_feedback(conv_id, current_researcher_name):
             else:
                 st.error("Failed to add feedback")
 
+
 # Configure page
 st.set_page_config(page_title="Therapy Conversation Generator", layout="wide")
 handle_streamlit_event()
@@ -274,14 +294,16 @@ st.title("AI Therapy Conversation Generator")
 tab1, tab2, tab3 = st.tabs(["Generate", "Review", "About"])
 
 with tab1:
+    # Researcher name outside form so it can be changed before saving
+    with st.sidebar:
+        researcher = st.text_input("Researcher name", value="Anonymous", key="researcher_input")
+        save_conversation = st.checkbox("Auto-save all conversations", value=False,
+                                        help="Automatically save every conversation you generate. You can also save manually after generation.")
+
     # Create a form for all inputs
     with st.form("conversation_settings"):
-        # Sidebar configuration
+        # Sidebar configuration (continued)
         with st.sidebar:
-            # Storage options (at top, no header)
-            researcher = st.text_input("Researcher name", value="Anonymous")
-            save_conversation = st.checkbox("Save conversations", value=False)
-
             st.header("Model Parameters")
             model = st.selectbox(
                 "Model",
@@ -385,6 +407,13 @@ with tab1:
 
     # Generate conversation if form is submitted
     if generate_pressed:
+        # Reset saved state for new conversation
+        st.session_state.current_conversation_saved = False
+        st.session_state.current_session = None
+        st.session_state.current_messages = []
+        st.session_state.current_researcher = researcher
+        st.session_state.show_conversation = True
+
         try:
             st.subheader("Conversation")
 
@@ -442,19 +471,50 @@ with tab1:
                         prompt_config=prompt_config
                 ):
                     messages.append(message)
+                    st.session_state.current_messages.append(message)
                     session = current_session
 
                     with st.chat_message(message["role"]):
                         st.write(message["content"])
 
-            # Save conversation after generation complete
+            # Save conversation after generation complete if auto-save is enabled
             if save_conversation and session:
                 storage = get_storage()
                 storage.save_therapy_session(session, researcher)
-                st.success("Conversation saved")
+                st.session_state.current_conversation_saved = True
+                st.session_state.current_session = session
+                st.success("✓ Conversation saved automatically")
+            else:
+                # Store session for potential manual save
+                st.session_state.current_session = session
 
         except Exception as e:
             st.error(f"An error occurred: {str(e)}")
+
+    # If conversation exists but not currently generating, display it (for after save button click)
+    elif st.session_state.show_conversation and st.session_state.current_messages:
+        st.subheader("Conversation")
+        for message in st.session_state.current_messages:
+            with st.chat_message(message["role"]):
+                st.write(message["content"])
+
+    # Display save button if conversation was generated (persists after button clicks)
+    if st.session_state.show_conversation and st.session_state.current_session is not None:
+        st.divider()
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.session_state.current_conversation_saved:
+                st.success("✓ Conversation saved!")
+            else:
+                if st.button("💾 Save Conversation", use_container_width=True, type="primary", key="save_btn"):
+                    storage = get_storage()
+                    # Use current researcher name from sidebar, not the one from generation time
+                    storage.save_therapy_session(
+                        st.session_state.current_session,
+                        researcher  # This pulls from the sidebar's current value
+                    )
+                    st.session_state.current_conversation_saved = True
+                    st.rerun()
 
 # Review tab
 with tab2:

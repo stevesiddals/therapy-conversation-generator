@@ -1,0 +1,11 @@
+# Exclude files that should not be uploaded to Google Cloud Build.
+.venv/
+.git/
+.idea/
+__pycache__
+*.pyc
+.env
+.gitignore
+diagnose_db.py
+# Exclude the gcloud ignore files themselves
+.gcloudignore
