@@ -297,7 +297,7 @@ with tab1:
     # Researcher name outside form so it can be changed before saving
     with st.sidebar:
         researcher = st.text_input("Researcher name", value="Anonymous", key="researcher_input")
-        save_conversation = st.checkbox("Auto-save all conversations", value=False,
+        save_conversation = st.checkbox("Auto-save conversations", value=False,
                                         help="Automatically save every conversation you generate. You can also save manually after generation.")
 
     # Create a form for all inputs
@@ -308,7 +308,8 @@ with tab1:
             model = st.selectbox(
                 "Model",
                 options=list(TherapySessionGenerator.MODELS.keys()),
-                format_func=lambda x: TherapySessionGenerator.MODELS[x][0]
+                format_func=lambda x: TherapySessionGenerator.MODELS[x][0],
+                index=list(TherapySessionGenerator.MODELS.keys()).index("gemini-2.0-flash")
             )
             temperature = st.slider("Temperature", 0.0, 1.0, 0.7)
             max_tokens = st.slider("Max Tokens", 50, 500, 200)  # Changed default
@@ -369,13 +370,13 @@ with tab1:
                 client_problem = st.text_area(
                     "Presenting Problem",
                     "depression and isolation",
-                    height=100
+                    height=120
                 )
             with subcol5:
                 client_context = st.text_area(
                     "Context",
                     "Working remotely for 2 years and struggling to maintain social connections",
-                    height=100
+                    height=120
                 )
 
         # Therapist Profile Configuration
@@ -399,6 +400,7 @@ with tab1:
             therapy_style = st.text_area(
                 "Therapeutic Style or Additional Context",
                 value=default_style,
+                height=120,
                 help="Use this field to add details about your therapeutic style, or to specify your approach if you selected 'Other' above"
             )
 
@@ -670,31 +672,25 @@ with tab2:
 
 with tab3:
     st.markdown("""
-        ## Purpose
-        * **Explore how AI therapy works** by generating conversations with a variety of clients situations and therapeutic approaches
-        * **Review conversations** others have generated to get ideas and inspiration for how AI works in this context
+        ### Purpose
+        * **Simulate AI therapy conversations**: you define the client and therapist, AI generates the conversation
         * **Compare different therapeutic approaches** for different client contexts
-        * **Contribute your ideas** to further research
+        * **Contribute to research**: hit the save button if the conversation was interesting
+        * **Explore others' ideas**: view, rate and comment on saved conversations in the Review tab
+        
+        ### Terms of use
+        * **Tokens** are on me
+        * **Feel free to use as much as you like** and share with others
+        * **If you generate anything interesting** - good or bad - **please save it** and, on the "Review" tab, **give it a rating and a review**
+        * **This is a research tool**, not a therapy tool - use at your own risk
 
-        ## Background
-        Generative AI may have potential to provide meaningful emotional support. A recently published study interviewed
-        19 individuals about their experiences of using AI for mental health, finding that:
-        * Users experienced meaningful emotional support and guidance
-        * AI interactions helped improve real-world relationships
-        * Participants reported healing from trauma and loss
-        * Users emphasised the need for more sophisticated safety measures
-
-        ["It happened to be the perfect thing": experiences of generative AI chatbots for mental health](https://www.nature.com/articles/s44184-024-00097-4)
-
-        ## Important Disclaimer
-        **This is a research tool**, designed to help study AI-generated therapeutic conversations and should not be 
-        used as a substitute for professional mental health support. Use at your own risk.
-
-        ## Source
-        The source code for this project is available on GitHub: 
+        ### About me
+        * [Steve Siddals](https://www.linkedin.com/in/stevensiddals/): Tech executive | Psychology researcher | Computer scientist
+        * My research: 
+            * [Real life experiences of generative AI for mental health](https://www.nature.com/articles/s44184-024-00097-4)
+            * [Systematic review of AI chatbots, from rule-based to LLMs](https://onlinelibrary.wiley.com/doi/full/10.1002/wps.21352)
+            * [A proposal for an AI therapy benchmarking platform](https://www.nature.com/articles/s44184-024-00097-4)
+            * [Evaluation of LLM facial emotion recognition](https://www.nature.com/articles/s41746-025-01985-5)
+        * The source code on GitHub: 
         [therapy-conversation-generator](https://github.com/stevesiddals/therapy-conversation-generator)
-        For research inquiries or more information about this tool, you can connect with the creator, Steve Siddals,
-        via [LinkedIn](https://www.linkedin.com/in/stevensiddals/). The project was built in collaboration with 
-        Anthropic's Claude AI assistant. 
-
     """)
