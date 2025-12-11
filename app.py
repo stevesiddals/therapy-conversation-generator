@@ -686,7 +686,7 @@ with tab3:
 
         ### About me
         * [Steve Siddals](https://www.linkedin.com/in/stevensiddals/): Tech executive | Psychology researcher | Computer scientist
-        * My research: 
+        * My research collaborations: 
             * [Real life experiences of generative AI for mental health](https://www.nature.com/articles/s44184-024-00097-4)
             * [Systematic review of AI chatbots, from rule-based to LLMs](https://onlinelibrary.wiley.com/doi/full/10.1002/wps.21352)
             * [A proposal for an AI therapy benchmarking platform](https://www.nature.com/articles/s44184-024-00097-4)
