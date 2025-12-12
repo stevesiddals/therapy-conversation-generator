@@ -261,7 +261,7 @@ def render_native_feedback(conv_id, current_researcher_name):
 
 
 # Configure page
-st.set_page_config(page_title="Therapy Conversation Generator", layout="wide")
+st.set_page_config(page_title="AI therapy conversation generator", layout="wide")
 handle_streamlit_event()
 
 # Initialize session state for expanded states if not exists
@@ -288,7 +288,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Title
-st.title("AI Therapy Conversation Generator")
+st.title("AI therapy conversation generator")
 
 # Create tabs
 tab1, tab2, tab3 = st.tabs(["Generate", "Review", "About"])
@@ -304,7 +304,7 @@ with tab1:
     with st.form("conversation_settings"):
         # Sidebar configuration (continued)
         with st.sidebar:
-            st.header("Model Parameters")
+            st.header("Model parameters")
             model = st.selectbox(
                 "Model",
                 options=list(TherapySessionGenerator.MODELS.keys()),
@@ -312,39 +312,39 @@ with tab1:
                 index=list(TherapySessionGenerator.MODELS.keys()).index("gemini-2.0-flash")
             )
             temperature = st.slider("Temperature", 0.0, 1.0, 0.7)
-            max_tokens = st.slider("Max Tokens", 50, 500, 200)  # Changed default
-            num_exchanges = st.slider("Number of Exchanges", 1, 10, 2)  # Changed default
+            max_tokens = st.slider("Max tokens", 100, 1000, 500)
+            num_exchanges = st.slider("Number of exchanges", 1, 10, 2)
 
             # Advanced Settings in an expander
-            with st.expander("Advanced Prompt Settings"):
-                st.subheader("System Prompts")
+            with st.expander("All prompts"):
+                st.subheader("System prompts")
                 therapist_system = st.text_area(
-                    "Therapist System Prompt",
+                    "Therapist system prompt",
                     "You are a therapist."
                 )
                 client_system = st.text_area(
-                    "Client System Prompt",
+                    "Client system prompt",
                     "You are a client in a therapy session."
                 )
 
-                st.subheader("Context Templates")
+                st.subheader("Context templates")
                 therapist_context_template = st.text_area(
-                    "Therapist Context Template",
+                    "Therapist context template",
                     """{approach} {style} What follows is the therapy conversation so far."""
                 )
 
                 client_context_template = st.text_area(
-                    "Client Context Template",
+                    "Client context template",
                     """You are {name}, {age} years old and {gender}. You came to therapy because {presenting_problem}. Your context: {context}. What follows is the therapy conversation so far."""
                 )
 
-                st.subheader("Response Instructions")
+                st.subheader("Response instructions")
                 therapist_instruction = st.text_input(
-                    "Therapist Instruction",
+                    "Therapist instruction",
                     "Now respond as the therapist."
                 )
                 client_instruction = st.text_input(
-                    "Client Instruction",
+                    "Client instruction",
                     "Take a moment to process what the therapist said, then respond naturally as yourself."
                 )
 
@@ -353,7 +353,7 @@ with tab1:
 
         # Client Profile Configuration
         with col1:
-            st.header("Client Profile")
+            st.header("Client profile")
 
             # First row: Name, Age, Gender
             subcol1, subcol2, subcol3 = st.columns(3)
@@ -368,7 +368,7 @@ with tab1:
             subcol4, subcol5 = st.columns(2)
             with subcol4:
                 client_problem = st.text_area(
-                    "Presenting Problem",
+                    "Presenting problem",
                     "depression and isolation",
                     height=120
                 )
@@ -381,7 +381,7 @@ with tab1:
 
         # Therapist Profile Configuration
         with col2:
-            st.header("Therapist Profile")
+            st.header("Therapist profile")
 
             therapy_approach = st.selectbox(
                 "You are practicing",
@@ -398,14 +398,14 @@ with tab1:
 
             default_style = "Your aim is to provide a warm, safe and compassionate space for emotional exploration and healing."
             therapy_style = st.text_area(
-                "Therapeutic Style or Additional Context",
+                "Therapeutic style or additional context",
                 value=default_style,
                 height=120,
                 help="Use this field to add details about your therapeutic style, or to specify your approach if you selected 'Other' above"
             )
 
         # Submit button at the bottom
-        generate_pressed = st.form_submit_button("Generate Conversation", type="primary")
+        generate_pressed = st.form_submit_button("Generate conversation", type="primary")
 
     # Generate conversation if form is submitted
     if generate_pressed:
@@ -508,7 +508,7 @@ with tab1:
             if st.session_state.current_conversation_saved:
                 st.success("✓ Conversation saved!")
             else:
-                if st.button("💾 Save Conversation", use_container_width=True, type="primary", key="save_btn"):
+                if st.button("💾 Save conversation", use_container_width=True, type="primary", key="save_btn"):
                     storage = get_storage()
                     # Use current researcher name from sidebar, not the one from generation time
                     storage.save_therapy_session(
@@ -520,7 +520,7 @@ with tab1:
 
 # Review tab
 with tab2:
-    st.header("Stored Conversations")
+    st.header("Stored conversations")
 
     # Add filters in columns
     filter_col1, filter_col2 = st.columns(2)
@@ -648,12 +648,12 @@ with tab2:
                             st.markdown(f"**Age:** {session.metadata.client_profile.age}")
                         with subcol3:
                             st.markdown(f"**Gender:** {session.metadata.client_profile.gender}")
-                        st.markdown(f"**Presenting Problem:** {session.metadata.client_profile.presenting_problem}")
+                        st.markdown(f"**Presenting problem:** {session.metadata.client_profile.presenting_problem}")
                         st.markdown(f"**Context:** {session.metadata.client_profile.context}")
 
                     # Therapist Profile
                     with profile_col2:
-                        st.header("Therapist Profile")
+                        st.header("Therapist profile")
                         st.markdown(f"**Approach:** {session.metadata.therapist_profile.approach}")
                         st.markdown(f"**Style:** {session.metadata.therapist_profile.style}")
 
@@ -681,7 +681,7 @@ with tab3:
         ### Terms of use
         * **Tokens** are on me
         * **Feel free to use as much as you like** and share with others
-        * **If you generate anything interesting** - good or bad - **please save it** and, on the "Review" tab, **give it a rating and a review**
+        * **I'd love to see your findings**, so please feel free to save, rate and comment on any interesting conversations you create
         * **This is a research tool**, not a therapy tool - use at your own risk
 
         ### About me
@@ -689,7 +689,7 @@ with tab3:
         * My research collaborations: 
             * [Real life experiences of generative AI for mental health](https://www.nature.com/articles/s44184-024-00097-4)
             * [Systematic review of AI chatbots, from rule-based to LLMs](https://onlinelibrary.wiley.com/doi/full/10.1002/wps.21352)
-            * [A proposal for an AI therapy benchmarking platform](https://www.nature.com/articles/s44184-024-00097-4)
+            * [A proposal for an AI therapy benchmarking platform](https://www.nature.com/articles/s44277-025-00049-6)
             * [Evaluation of LLM facial emotion recognition](https://www.nature.com/articles/s41746-025-01985-5)
         * The source code on GitHub: 
         [therapy-conversation-generator](https://github.com/stevesiddals/therapy-conversation-generator)
