@@ -312,7 +312,7 @@ with tab1:
                 index=list(TherapySessionGenerator.MODELS.keys()).index("gemini-2.0-flash")
             )
             temperature = st.slider("Temperature", 0.0, 1.0, 0.7)
-            max_tokens = st.slider("Max tokens", 100, 1000, 500)
+            max_tokens = st.slider("Max tokens", 200, 2000, 1000)
             num_exchanges = st.slider("Number of exchanges", 1, 10, 2)
 
             # Advanced Settings in an expander
