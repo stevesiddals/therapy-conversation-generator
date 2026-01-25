@@ -309,7 +309,7 @@ with tab1:
                 "Model",
                 options=list(TherapySessionGenerator.MODELS.keys()),
                 format_func=lambda x: TherapySessionGenerator.MODELS[x][0],
-                index=list(TherapySessionGenerator.MODELS.keys()).index("gemini-2.0-flash")
+                index=list(TherapySessionGenerator.MODELS.keys()).index("gemini-2.5-flash")
             )
             temperature = st.slider("Temperature", 0.0, 1.0, 0.7)
             max_tokens = st.slider("Max tokens", 200, 2000, 1000)

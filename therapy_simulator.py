@@ -325,9 +325,9 @@ class TherapySessionGenerator:
         )
 
         # Google Models
-        cls.MODELS["gemini-2.0-flash"] = (
-            "Gemini 2.0 Flash",
-            lambda key: GeminiModel(key, "gemini-2.0-flash", "Gemini 2.0 Flash")
+        cls.MODELS["gemini-2.5-flash"] = (
+            "Gemini 2.5 Flash",
+            lambda key: GeminiModel(key, "gemini-2.5-flash", "Gemini 2.5 Flash")
         )
         cls.MODELS["gemini-3-pro-low"] = (
             "Gemini 3 Pro",
